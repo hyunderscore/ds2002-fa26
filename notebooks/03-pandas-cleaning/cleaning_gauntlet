@@ -1,0 +1,1431 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/hyunderscore/ds2002-fa26/blob/main/notebooks/03-pandas-cleaning/cleaning_gauntlet\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "T49dCa0PKGWC"
+      },
+      "source": [
+        "# DS2002 · Cleaning Gauntlet\n",
+        "\n",
+        "**Lab — 2026-09-25 · Fall 2026**  \n",
+        "\n",
+        "---"
+      ],
+      "id": "T49dCa0PKGWC"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "WkA2Wb0sKGWD"
+      },
+      "source": [
+        "## Lab 05 — Cleaning Gauntlet\n",
+        "\n",
+        "Three hundred rows, generated messy. This is the first dataset in the course you cannot eyeball, which means you have to work from counts and assertions rather than from looking at the table and deciding it seems fine.\n",
+        "\n",
+        "Deliverables: a clean frame, a decision log, a set of assertions that pass, and one business number at the end — revenue by category — that you would be willing to defend.\n",
+        "\n",
+        "Keep the log as you go. Reconstructing it afterward is much harder than writing one line per step, and the write-up at the end depends on it."
+      ],
+      "id": "WkA2Wb0sKGWD"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "laW8kHZlKGWE"
+      },
+      "source": [
+        "### The log\n",
+        "\n",
+        "Run this first, then call `log(...)` after each cleaning step."
+      ],
+      "id": "laW8kHZlKGWE"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 2,
+      "metadata": {
+        "id": "WNj21G-HKGWE"
+      },
+      "outputs": [],
+      "source": [
+        "DECISIONS = []\n",
+        "\n",
+        "def log(step, decision, rows_affected):\n",
+        "    DECISIONS.append({'step': step, 'decision': decision, 'rows': rows_affected})\n",
+        "    print(f'[{step}] {decision} ({rows_affected} row(s))')"
+      ],
+      "id": "WNj21G-HKGWE"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 3,
+      "metadata": {
+        "id": "2UBZNAXyKGWF",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 206
+        },
+        "outputId": "72878922-55ba-4dcf-bdba-2c3d2eeb2f6c"
+      },
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "   order_id           item  category  qty   price\n",
+              "0         0    Rain Poncho  RainGear  3.0  $12.00\n",
+              "1         1    foam finger   Apparel  1.0     7.5\n",
+              "2         2  cheese burger     Merch  1.0   $7.50\n",
+              "3         3   Cheeseburger      Food  NaN   $7.50\n",
+              "4         4  cheese burger   Apparel  1.0     7.5"
+            ],
+            "text/html": [
+              "\n",
+              "  <div id=\"df-ec3a3f34-c0b3-4ffb-8504-698fc0e72ad1\" class=\"colab-df-container\">\n",
+              "    <div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>order_id</th>\n",
+              "      <th>item</th>\n",
+              "      <th>category</th>\n",
+              "      <th>qty</th>\n",
+              "      <th>price</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>0</td>\n",
+              "      <td>Rain Poncho</td>\n",
+              "      <td>RainGear</td>\n",
+              "      <td>3.0</td>\n",
+              "      <td>$12.00</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>1</td>\n",
+              "      <td>foam finger</td>\n",
+              "      <td>Apparel</td>\n",
+              "      <td>1.0</td>\n",
+              "      <td>7.5</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>2</td>\n",
+              "      <td>cheese burger</td>\n",
+              "      <td>Merch</td>\n",
+              "      <td>1.0</td>\n",
+              "      <td>$7.50</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>3</th>\n",
+              "      <td>3</td>\n",
+              "      <td>Cheeseburger</td>\n",
+              "      <td>Food</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>$7.50</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>4</th>\n",
+              "      <td>4</td>\n",
+              "      <td>cheese burger</td>\n",
+              "      <td>Apparel</td>\n",
+              "      <td>1.0</td>\n",
+              "      <td>7.5</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>\n",
+              "    <div class=\"colab-df-buttons\">\n",
+              "\n",
+              "  <div class=\"colab-df-container\">\n",
+              "    <button class=\"colab-df-convert\" onclick=\"convertToInteractive('df-ec3a3f34-c0b3-4ffb-8504-698fc0e72ad1')\"\n",
+              "            title=\"Convert this dataframe to an interactive table.\"\n",
+              "            style=\"display:none;\">\n",
+              "\n",
+              "  <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24px\" viewBox=\"0 -960 960 960\">\n",
+              "    <path d=\"M120-120v-720h720v720H120Zm60-500h600v-160H180v160Zm220 220h160v-160H400v160Zm0 220h160v-160H400v160ZM180-400h160v-160H180v160Zm440 0h160v-160H620v160ZM180-180h160v-160H180v160Zm440 0h160v-160H620v160Z\"/>\n",
+              "  </svg>\n",
+              "    </button>\n",
+              "\n",
+              "  <style>\n",
+              "    .colab-df-container {\n",
+              "      display:flex;\n",
+              "      gap: 12px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert {\n",
+              "      background-color: #E8F0FE;\n",
+              "      border: none;\n",
+              "      border-radius: 50%;\n",
+              "      cursor: pointer;\n",
+              "      display: none;\n",
+              "      fill: #1967D2;\n",
+              "      height: 32px;\n",
+              "      padding: 0 0 0 0;\n",
+              "      width: 32px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert:hover {\n",
+              "      background-color: #E2EBFA;\n",
+              "      box-shadow: 0px 1px 2px rgba(60, 64, 67, 0.3), 0px 1px 3px 1px rgba(60, 64, 67, 0.15);\n",
+              "      fill: #174EA6;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-buttons div {\n",
+              "      margin-bottom: 4px;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert {\n",
+              "      background-color: #3B4455;\n",
+              "      fill: #D2E3FC;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert:hover {\n",
+              "      background-color: #434B5C;\n",
+              "      box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);\n",
+              "      filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));\n",
+              "      fill: #FFFFFF;\n",
+              "    }\n",
+              "  </style>\n",
+              "\n",
+              "    <script>\n",
+              "      const buttonEl =\n",
+              "        document.querySelector('#df-ec3a3f34-c0b3-4ffb-8504-698fc0e72ad1 button.colab-df-convert');\n",
+              "      buttonEl.style.display =\n",
+              "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
+              "\n",
+              "      async function convertToInteractive(key) {\n",
+              "        const element = document.querySelector('#df-ec3a3f34-c0b3-4ffb-8504-698fc0e72ad1');\n",
+              "        const dataTable =\n",
+              "          await google.colab.kernel.invokeFunction('convertToInteractive',\n",
+              "                                                    [key], {});\n",
+              "        if (!dataTable) return;\n",
+              "\n",
+              "        const docLinkHtml = 'Like what you see? Visit the ' +\n",
+              "          '<a target=\"_blank\" href=https://colab.research.google.com/notebooks/data_table.ipynb>data table notebook</a>'\n",
+              "          + ' to learn more about interactive tables.';\n",
+              "        element.innerHTML = '';\n",
+              "        dataTable['output_type'] = 'display_data';\n",
+              "        await google.colab.output.renderOutput(dataTable, element);\n",
+              "        const docLink = document.createElement('div');\n",
+              "        docLink.innerHTML = docLinkHtml;\n",
+              "        element.appendChild(docLink);\n",
+              "      }\n",
+              "    </script>\n",
+              "  </div>\n",
+              "\n",
+              "\n",
+              "    </div>\n",
+              "  </div>\n"
+            ],
+            "application/vnd.google.colaboratory.intrinsic+json": {
+              "type": "dataframe",
+              "variable_name": "df",
+              "summary": "{\n  \"name\": \"df\",\n  \"rows\": 315,\n  \"fields\": [\n    {\n      \"column\": \"order_id\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 86,\n        \"min\": 0,\n        \"max\": 299,\n        \"num_unique_values\": 300,\n        \"samples\": [\n          203,\n          266,\n          152\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"item\",\n      \"properties\": {\n        \"dtype\": \"category\",\n        \"num_unique_values\": 6,\n        \"samples\": [\n          \"Rain Poncho\",\n          \"foam finger\",\n          \"rain poncho\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"category\",\n      \"properties\": {\n        \"dtype\": \"category\",\n        \"num_unique_values\": 6,\n        \"samples\": [\n          \"RainGear\",\n          \"Apparel\",\n          \"rain-gear\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"qty\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0.913986957799946,\n        \"min\": -1.0,\n        \"max\": 3.0,\n        \"num_unique_values\": 4,\n        \"samples\": [\n          1.0,\n          -1.0,\n          3.0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"price\",\n      \"properties\": {\n        \"dtype\": \"category\",\n        \"num_unique_values\": 5,\n        \"samples\": [\n          \"7.5\",\n          \"24\",\n          \"$7.50\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    }\n  ]\n}"
+            }
+          },
+          "metadata": {},
+          "execution_count": 3
+        }
+      ],
+      "source": [
+        "import pandas as pd, numpy as np\n",
+        "from io import StringIO\n",
+        "rng = np.random.default_rng(5)\n",
+        "items = ['Cheeseburger','cheese burger','Foam Finger','foam finger','Rain Poncho','rain poncho']\n",
+        "cats = ['Food','food','Merch','Apparel','RainGear','rain-gear']\n",
+        "rows = []\n",
+        "for i in range(300):\n",
+        "    rows.append({\n",
+        "        'order_id': i,\n",
+        "        'item': rng.choice(items),\n",
+        "        'category': rng.choice(cats),\n",
+        "        'qty': rng.choice([1,2,3,-1,np.nan], p=[.5,.25,.15,.05,.05]),\n",
+        "        'price': rng.choice(['$7.50','7.5','$12.00','24','6.0']),\n",
+        "    })\n",
+        "df = pd.DataFrame(rows)\n",
+        "df = pd.concat([df, df.sample(15, random_state=1)])  # inject dupes\n",
+        "df.head()"
+      ],
+      "id": "2UBZNAXyKGWF"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "CE_mKJYvKGWG"
+      },
+      "source": [
+        "### TODO 1 — drop duplicates"
+      ],
+      "id": "CE_mKJYvKGWG"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 4,
+      "metadata": {
+        "id": "VZOCtNP4KGWG",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 223
+        },
+        "outputId": "0637bb7a-f0f3-4d48-c0df-eee383393eb9"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "[drop duplicates] dropped (15 row(s))\n"
+          ]
+        },
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "   order_id           item  category  qty   price\n",
+              "0         0    Rain Poncho  RainGear  3.0  $12.00\n",
+              "1         1    foam finger   Apparel  1.0     7.5\n",
+              "2         2  cheese burger     Merch  1.0   $7.50\n",
+              "3         3   Cheeseburger      Food  NaN   $7.50\n",
+              "4         4  cheese burger   Apparel  1.0     7.5"
+            ],
+            "text/html": [
+              "\n",
+              "  <div id=\"df-1f81e710-793e-479d-a562-62254e074344\" class=\"colab-df-container\">\n",
+              "    <div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>order_id</th>\n",
+              "      <th>item</th>\n",
+              "      <th>category</th>\n",
+              "      <th>qty</th>\n",
+              "      <th>price</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>0</td>\n",
+              "      <td>Rain Poncho</td>\n",
+              "      <td>RainGear</td>\n",
+              "      <td>3.0</td>\n",
+              "      <td>$12.00</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>1</td>\n",
+              "      <td>foam finger</td>\n",
+              "      <td>Apparel</td>\n",
+              "      <td>1.0</td>\n",
+              "      <td>7.5</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>2</td>\n",
+              "      <td>cheese burger</td>\n",
+              "      <td>Merch</td>\n",
+              "      <td>1.0</td>\n",
+              "      <td>$7.50</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>3</th>\n",
+              "      <td>3</td>\n",
+              "      <td>Cheeseburger</td>\n",
+              "      <td>Food</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>$7.50</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>4</th>\n",
+              "      <td>4</td>\n",
+              "      <td>cheese burger</td>\n",
+              "      <td>Apparel</td>\n",
+              "      <td>1.0</td>\n",
+              "      <td>7.5</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>\n",
+              "    <div class=\"colab-df-buttons\">\n",
+              "\n",
+              "  <div class=\"colab-df-container\">\n",
+              "    <button class=\"colab-df-convert\" onclick=\"convertToInteractive('df-1f81e710-793e-479d-a562-62254e074344')\"\n",
+              "            title=\"Convert this dataframe to an interactive table.\"\n",
+              "            style=\"display:none;\">\n",
+              "\n",
+              "  <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24px\" viewBox=\"0 -960 960 960\">\n",
+              "    <path d=\"M120-120v-720h720v720H120Zm60-500h600v-160H180v160Zm220 220h160v-160H400v160Zm0 220h160v-160H400v160ZM180-400h160v-160H180v160Zm440 0h160v-160H620v160ZM180-180h160v-160H180v160Zm440 0h160v-160H620v160Z\"/>\n",
+              "  </svg>\n",
+              "    </button>\n",
+              "\n",
+              "  <style>\n",
+              "    .colab-df-container {\n",
+              "      display:flex;\n",
+              "      gap: 12px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert {\n",
+              "      background-color: #E8F0FE;\n",
+              "      border: none;\n",
+              "      border-radius: 50%;\n",
+              "      cursor: pointer;\n",
+              "      display: none;\n",
+              "      fill: #1967D2;\n",
+              "      height: 32px;\n",
+              "      padding: 0 0 0 0;\n",
+              "      width: 32px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert:hover {\n",
+              "      background-color: #E2EBFA;\n",
+              "      box-shadow: 0px 1px 2px rgba(60, 64, 67, 0.3), 0px 1px 3px 1px rgba(60, 64, 67, 0.15);\n",
+              "      fill: #174EA6;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-buttons div {\n",
+              "      margin-bottom: 4px;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert {\n",
+              "      background-color: #3B4455;\n",
+              "      fill: #D2E3FC;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert:hover {\n",
+              "      background-color: #434B5C;\n",
+              "      box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);\n",
+              "      filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));\n",
+              "      fill: #FFFFFF;\n",
+              "    }\n",
+              "  </style>\n",
+              "\n",
+              "    <script>\n",
+              "      const buttonEl =\n",
+              "        document.querySelector('#df-1f81e710-793e-479d-a562-62254e074344 button.colab-df-convert');\n",
+              "      buttonEl.style.display =\n",
+              "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
+              "\n",
+              "      async function convertToInteractive(key) {\n",
+              "        const element = document.querySelector('#df-1f81e710-793e-479d-a562-62254e074344');\n",
+              "        const dataTable =\n",
+              "          await google.colab.kernel.invokeFunction('convertToInteractive',\n",
+              "                                                    [key], {});\n",
+              "        if (!dataTable) return;\n",
+              "\n",
+              "        const docLinkHtml = 'Like what you see? Visit the ' +\n",
+              "          '<a target=\"_blank\" href=https://colab.research.google.com/notebooks/data_table.ipynb>data table notebook</a>'\n",
+              "          + ' to learn more about interactive tables.';\n",
+              "        element.innerHTML = '';\n",
+              "        dataTable['output_type'] = 'display_data';\n",
+              "        await google.colab.output.renderOutput(dataTable, element);\n",
+              "        const docLink = document.createElement('div');\n",
+              "        docLink.innerHTML = docLinkHtml;\n",
+              "        element.appendChild(docLink);\n",
+              "      }\n",
+              "    </script>\n",
+              "  </div>\n",
+              "\n",
+              "\n",
+              "    </div>\n",
+              "  </div>\n"
+            ],
+            "application/vnd.google.colaboratory.intrinsic+json": {
+              "type": "dataframe",
+              "variable_name": "df",
+              "summary": "{\n  \"name\": \"df\",\n  \"rows\": 300,\n  \"fields\": [\n    {\n      \"column\": \"order_id\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 86,\n        \"min\": 0,\n        \"max\": 299,\n        \"num_unique_values\": 300,\n        \"samples\": [\n          203,\n          266,\n          152\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"item\",\n      \"properties\": {\n        \"dtype\": \"category\",\n        \"num_unique_values\": 6,\n        \"samples\": [\n          \"Rain Poncho\",\n          \"foam finger\",\n          \"rain poncho\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"category\",\n      \"properties\": {\n        \"dtype\": \"category\",\n        \"num_unique_values\": 6,\n        \"samples\": [\n          \"RainGear\",\n          \"Apparel\",\n          \"rain-gear\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"qty\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0.9217273987463387,\n        \"min\": -1.0,\n        \"max\": 3.0,\n        \"num_unique_values\": 4,\n        \"samples\": [\n          1.0,\n          -1.0,\n          3.0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"price\",\n      \"properties\": {\n        \"dtype\": \"category\",\n        \"num_unique_values\": 5,\n        \"samples\": [\n          \"7.5\",\n          \"24\",\n          \"$7.50\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    }\n  ]\n}"
+            }
+          },
+          "metadata": {},
+          "execution_count": 4
+        }
+      ],
+      "source": [
+        "# TODO\n",
+        "removed = df.duplicated().sum()\n",
+        "df = df.drop_duplicates().copy()\n",
+        "log('drop duplicates', 'dropped', removed)\n",
+        "df.head()"
+      ],
+      "id": "VZOCtNP4KGWG"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "JtoXRQIpKGWG"
+      },
+      "source": [
+        "### TODO 2 — clean `price` -> float"
+      ],
+      "id": "JtoXRQIpKGWG"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 5,
+      "metadata": {
+        "id": "JDAZnvH5KGWG",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 278
+        },
+        "outputId": "dc65471e-8f38-439f-fcb7-e438068982d7"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "before:$12.007.5$7.50$7.507.56.024247.5$7.50$12.006.0$7.50$12.00$7.50$7.50247.56.0$7.50$12.006.024246.0246.0246.024246.06.0$12.00$12.00$7.50247.5$7.50$12.00$12.00$12.00246.024$7.50$7.50$12.00$7.507.57.5247.57.5$7.507.5$7.506.0$7.507.56.07.56.0$12.007.5$12.0024246.06.06.07.57.5$7.50$12.0024$7.50$12.00$12.00$7.50$12.00$7.5024247.56.0$7.507.57.56.0$7.506.0247.524$7.50246.06.0$7.50$12.007.56.0$7.507.57.56.07.57.5$12.00247.5$7.50$7.5024$7.507.57.5$12.00246.0$7.50247.5246.0247.57.5$12.006.0$12.006.024$12.00$12.007.57.56.07.5$12.00$12.006.06.0$7.50$12.00$7.50247.57.56.06.0$12.00$7.507.5$7.50$12.00$12.007.56.0$12.00$12.00$12.006.07.57.5$7.50$12.0024$12.0024$7.506.0$12.007.5$12.00$12.007.56.06.07.5$7.50$7.50$12.00$12.0024$12.00246.0$7.507.56.024$12.007.56.024$7.506.024$7.50$12.00247.56.0$12.007.56.06.06.06.07.56.0$12.007.5$12.0024$12.006.06.0$12.006.0246.0$7.506.06.024$12.006.06.0$7.507.5$7.50$12.00$7.50$12.007.5$7.507.5$7.50247.5$7.50$7.50$12.00$7.50$12.00246.0$7.50$7.50$12.007.5$12.007.52424$12.00$7.506.0$7.50$12.007.56.0247.5$7.50$12.00$12.006.06.02424$12.006.0$12.006.024$12.002424$7.50$12.00$7.506.0$7.50$12.007.524$7.506.0$7.50$12.006.06.06.07.5$7.50$12.00\n",
+            "[price] coerced to float (300 row(s))\n",
+            "after:3283.5\n"
+          ]
+        },
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "   order_id           item  category  qty  price\n",
+              "0         0    Rain Poncho  RainGear  3.0   12.0\n",
+              "1         1    foam finger   Apparel  1.0    7.5\n",
+              "2         2  cheese burger     Merch  1.0    7.5\n",
+              "3         3   Cheeseburger      Food  NaN    7.5\n",
+              "4         4  cheese burger   Apparel  1.0    7.5"
+            ],
+            "text/html": [
+              "\n",
+              "  <div id=\"df-cb731825-a732-4375-81cc-83316181abec\" class=\"colab-df-container\">\n",
+              "    <div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>order_id</th>\n",
+              "      <th>item</th>\n",
+              "      <th>category</th>\n",
+              "      <th>qty</th>\n",
+              "      <th>price</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>0</td>\n",
+              "      <td>Rain Poncho</td>\n",
+              "      <td>RainGear</td>\n",
+              "      <td>3.0</td>\n",
+              "      <td>12.0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>1</td>\n",
+              "      <td>foam finger</td>\n",
+              "      <td>Apparel</td>\n",
+              "      <td>1.0</td>\n",
+              "      <td>7.5</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>2</td>\n",
+              "      <td>cheese burger</td>\n",
+              "      <td>Merch</td>\n",
+              "      <td>1.0</td>\n",
+              "      <td>7.5</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>3</th>\n",
+              "      <td>3</td>\n",
+              "      <td>Cheeseburger</td>\n",
+              "      <td>Food</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>7.5</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>4</th>\n",
+              "      <td>4</td>\n",
+              "      <td>cheese burger</td>\n",
+              "      <td>Apparel</td>\n",
+              "      <td>1.0</td>\n",
+              "      <td>7.5</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>\n",
+              "    <div class=\"colab-df-buttons\">\n",
+              "\n",
+              "  <div class=\"colab-df-container\">\n",
+              "    <button class=\"colab-df-convert\" onclick=\"convertToInteractive('df-cb731825-a732-4375-81cc-83316181abec')\"\n",
+              "            title=\"Convert this dataframe to an interactive table.\"\n",
+              "            style=\"display:none;\">\n",
+              "\n",
+              "  <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24px\" viewBox=\"0 -960 960 960\">\n",
+              "    <path d=\"M120-120v-720h720v720H120Zm60-500h600v-160H180v160Zm220 220h160v-160H400v160Zm0 220h160v-160H400v160ZM180-400h160v-160H180v160Zm440 0h160v-160H620v160ZM180-180h160v-160H180v160Zm440 0h160v-160H620v160Z\"/>\n",
+              "  </svg>\n",
+              "    </button>\n",
+              "\n",
+              "  <style>\n",
+              "    .colab-df-container {\n",
+              "      display:flex;\n",
+              "      gap: 12px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert {\n",
+              "      background-color: #E8F0FE;\n",
+              "      border: none;\n",
+              "      border-radius: 50%;\n",
+              "      cursor: pointer;\n",
+              "      display: none;\n",
+              "      fill: #1967D2;\n",
+              "      height: 32px;\n",
+              "      padding: 0 0 0 0;\n",
+              "      width: 32px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert:hover {\n",
+              "      background-color: #E2EBFA;\n",
+              "      box-shadow: 0px 1px 2px rgba(60, 64, 67, 0.3), 0px 1px 3px 1px rgba(60, 64, 67, 0.15);\n",
+              "      fill: #174EA6;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-buttons div {\n",
+              "      margin-bottom: 4px;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert {\n",
+              "      background-color: #3B4455;\n",
+              "      fill: #D2E3FC;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert:hover {\n",
+              "      background-color: #434B5C;\n",
+              "      box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);\n",
+              "      filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));\n",
+              "      fill: #FFFFFF;\n",
+              "    }\n",
+              "  </style>\n",
+              "\n",
+              "    <script>\n",
+              "      const buttonEl =\n",
+              "        document.querySelector('#df-cb731825-a732-4375-81cc-83316181abec button.colab-df-convert');\n",
+              "      buttonEl.style.display =\n",
+              "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
+              "\n",
+              "      async function convertToInteractive(key) {\n",
+              "        const element = document.querySelector('#df-cb731825-a732-4375-81cc-83316181abec');\n",
+              "        const dataTable =\n",
+              "          await google.colab.kernel.invokeFunction('convertToInteractive',\n",
+              "                                                    [key], {});\n",
+              "        if (!dataTable) return;\n",
+              "\n",
+              "        const docLinkHtml = 'Like what you see? Visit the ' +\n",
+              "          '<a target=\"_blank\" href=https://colab.research.google.com/notebooks/data_table.ipynb>data table notebook</a>'\n",
+              "          + ' to learn more about interactive tables.';\n",
+              "        element.innerHTML = '';\n",
+              "        dataTable['output_type'] = 'display_data';\n",
+              "        await google.colab.output.renderOutput(dataTable, element);\n",
+              "        const docLink = document.createElement('div');\n",
+              "        docLink.innerHTML = docLinkHtml;\n",
+              "        element.appendChild(docLink);\n",
+              "      }\n",
+              "    </script>\n",
+              "  </div>\n",
+              "\n",
+              "\n",
+              "    </div>\n",
+              "  </div>\n"
+            ],
+            "application/vnd.google.colaboratory.intrinsic+json": {
+              "type": "dataframe",
+              "variable_name": "df",
+              "summary": "{\n  \"name\": \"df\",\n  \"rows\": 300,\n  \"fields\": [\n    {\n      \"column\": \"order_id\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 86,\n        \"min\": 0,\n        \"max\": 299,\n        \"num_unique_values\": 300,\n        \"samples\": [\n          203,\n          266,\n          152\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"item\",\n      \"properties\": {\n        \"dtype\": \"category\",\n        \"num_unique_values\": 6,\n        \"samples\": [\n          \"Rain Poncho\",\n          \"foam finger\",\n          \"rain poncho\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"category\",\n      \"properties\": {\n        \"dtype\": \"category\",\n        \"num_unique_values\": 6,\n        \"samples\": [\n          \"RainGear\",\n          \"Apparel\",\n          \"rain-gear\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"qty\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0.9217273987463387,\n        \"min\": -1.0,\n        \"max\": 3.0,\n        \"num_unique_values\": 4,\n        \"samples\": [\n          1.0,\n          -1.0,\n          3.0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"price\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 6.2798031890852695,\n        \"min\": 6.0,\n        \"max\": 24.0,\n        \"num_unique_values\": 4,\n        \"samples\": [\n          7.5,\n          24.0,\n          12.0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    }\n  ]\n}"
+            }
+          },
+          "metadata": {},
+          "execution_count": 5
+        }
+      ],
+      "source": [
+        "# TODO\n",
+        "print(f'before:{df['price'].sum()}')\n",
+        "df['price'] = df['price'].str.replace('$', '').astype(float)\n",
+        "log('price', 'coerced to float', len(df['price']))\n",
+        "print(f'after:{df['price'].sum()}')\n",
+        "df.head()"
+      ],
+      "id": "JDAZnvH5KGWG"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "uYGJ-gAkKGWG"
+      },
+      "source": [
+        "### TODO 3 — `qty` -> numeric, drop rows with missing/negative qty"
+      ],
+      "id": "uYGJ-gAkKGWG"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 6,
+      "metadata": {
+        "id": "9vFG9MO5KGWH",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 240
+        },
+        "outputId": "953d4e8e-bd8c-44cf-be5a-63c1f5a94197"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "[qty] dropped missing rows  (12 row(s))\n",
+            "[qty] dropped negative rows (13 row(s))\n"
+          ]
+        },
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "   order_id           item  category  qty  price\n",
+              "0         0    Rain Poncho  RainGear  3.0   12.0\n",
+              "1         1    foam finger   Apparel  1.0    7.5\n",
+              "2         2  cheese burger     Merch  1.0    7.5\n",
+              "4         4  cheese burger   Apparel  1.0    7.5\n",
+              "5         5    Foam Finger      food  3.0    6.0"
+            ],
+            "text/html": [
+              "\n",
+              "  <div id=\"df-ab8c2099-fd7b-4722-bd8f-7dbcdbbf535a\" class=\"colab-df-container\">\n",
+              "    <div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>order_id</th>\n",
+              "      <th>item</th>\n",
+              "      <th>category</th>\n",
+              "      <th>qty</th>\n",
+              "      <th>price</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>0</td>\n",
+              "      <td>Rain Poncho</td>\n",
+              "      <td>RainGear</td>\n",
+              "      <td>3.0</td>\n",
+              "      <td>12.0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>1</td>\n",
+              "      <td>foam finger</td>\n",
+              "      <td>Apparel</td>\n",
+              "      <td>1.0</td>\n",
+              "      <td>7.5</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>2</td>\n",
+              "      <td>cheese burger</td>\n",
+              "      <td>Merch</td>\n",
+              "      <td>1.0</td>\n",
+              "      <td>7.5</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>4</th>\n",
+              "      <td>4</td>\n",
+              "      <td>cheese burger</td>\n",
+              "      <td>Apparel</td>\n",
+              "      <td>1.0</td>\n",
+              "      <td>7.5</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>5</th>\n",
+              "      <td>5</td>\n",
+              "      <td>Foam Finger</td>\n",
+              "      <td>food</td>\n",
+              "      <td>3.0</td>\n",
+              "      <td>6.0</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>\n",
+              "    <div class=\"colab-df-buttons\">\n",
+              "\n",
+              "  <div class=\"colab-df-container\">\n",
+              "    <button class=\"colab-df-convert\" onclick=\"convertToInteractive('df-ab8c2099-fd7b-4722-bd8f-7dbcdbbf535a')\"\n",
+              "            title=\"Convert this dataframe to an interactive table.\"\n",
+              "            style=\"display:none;\">\n",
+              "\n",
+              "  <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24px\" viewBox=\"0 -960 960 960\">\n",
+              "    <path d=\"M120-120v-720h720v720H120Zm60-500h600v-160H180v160Zm220 220h160v-160H400v160Zm0 220h160v-160H400v160ZM180-400h160v-160H180v160Zm440 0h160v-160H620v160ZM180-180h160v-160H180v160Zm440 0h160v-160H620v160Z\"/>\n",
+              "  </svg>\n",
+              "    </button>\n",
+              "\n",
+              "  <style>\n",
+              "    .colab-df-container {\n",
+              "      display:flex;\n",
+              "      gap: 12px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert {\n",
+              "      background-color: #E8F0FE;\n",
+              "      border: none;\n",
+              "      border-radius: 50%;\n",
+              "      cursor: pointer;\n",
+              "      display: none;\n",
+              "      fill: #1967D2;\n",
+              "      height: 32px;\n",
+              "      padding: 0 0 0 0;\n",
+              "      width: 32px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert:hover {\n",
+              "      background-color: #E2EBFA;\n",
+              "      box-shadow: 0px 1px 2px rgba(60, 64, 67, 0.3), 0px 1px 3px 1px rgba(60, 64, 67, 0.15);\n",
+              "      fill: #174EA6;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-buttons div {\n",
+              "      margin-bottom: 4px;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert {\n",
+              "      background-color: #3B4455;\n",
+              "      fill: #D2E3FC;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert:hover {\n",
+              "      background-color: #434B5C;\n",
+              "      box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);\n",
+              "      filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));\n",
+              "      fill: #FFFFFF;\n",
+              "    }\n",
+              "  </style>\n",
+              "\n",
+              "    <script>\n",
+              "      const buttonEl =\n",
+              "        document.querySelector('#df-ab8c2099-fd7b-4722-bd8f-7dbcdbbf535a button.colab-df-convert');\n",
+              "      buttonEl.style.display =\n",
+              "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
+              "\n",
+              "      async function convertToInteractive(key) {\n",
+              "        const element = document.querySelector('#df-ab8c2099-fd7b-4722-bd8f-7dbcdbbf535a');\n",
+              "        const dataTable =\n",
+              "          await google.colab.kernel.invokeFunction('convertToInteractive',\n",
+              "                                                    [key], {});\n",
+              "        if (!dataTable) return;\n",
+              "\n",
+              "        const docLinkHtml = 'Like what you see? Visit the ' +\n",
+              "          '<a target=\"_blank\" href=https://colab.research.google.com/notebooks/data_table.ipynb>data table notebook</a>'\n",
+              "          + ' to learn more about interactive tables.';\n",
+              "        element.innerHTML = '';\n",
+              "        dataTable['output_type'] = 'display_data';\n",
+              "        await google.colab.output.renderOutput(dataTable, element);\n",
+              "        const docLink = document.createElement('div');\n",
+              "        docLink.innerHTML = docLinkHtml;\n",
+              "        element.appendChild(docLink);\n",
+              "      }\n",
+              "    </script>\n",
+              "  </div>\n",
+              "\n",
+              "\n",
+              "    </div>\n",
+              "  </div>\n"
+            ],
+            "application/vnd.google.colaboratory.intrinsic+json": {
+              "type": "dataframe",
+              "variable_name": "df",
+              "summary": "{\n  \"name\": \"df\",\n  \"rows\": 275,\n  \"fields\": [\n    {\n      \"column\": \"order_id\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 86,\n        \"min\": 0,\n        \"max\": 299,\n        \"num_unique_values\": 275,\n        \"samples\": [\n          33,\n          154,\n          214\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"item\",\n      \"properties\": {\n        \"dtype\": \"category\",\n        \"num_unique_values\": 6,\n        \"samples\": [\n          \"Rain Poncho\",\n          \"foam finger\",\n          \"Cheeseburger\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"category\",\n      \"properties\": {\n        \"dtype\": \"category\",\n        \"num_unique_values\": 6,\n        \"samples\": [\n          \"RainGear\",\n          \"Apparel\",\n          \"Food\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"qty\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0.7650806325175686,\n        \"min\": 1.0,\n        \"max\": 3.0,\n        \"num_unique_values\": 3,\n        \"samples\": [\n          3.0,\n          1.0,\n          2.0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"price\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 6.1550730043963995,\n        \"min\": 6.0,\n        \"max\": 24.0,\n        \"num_unique_values\": 4,\n        \"samples\": [\n          7.5,\n          24.0,\n          12.0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    }\n  ]\n}"
+            }
+          },
+          "metadata": {},
+          "execution_count": 6
+        }
+      ],
+      "source": [
+        "df['qty'] = pd.to_numeric(df['qty'], errors='coerce')\n",
+        "\n",
+        "missing = df['qty'].isna().sum()\n",
+        "df = df.dropna(subset=['qty'])\n",
+        "log('qty', 'dropped missing rows ', missing)\n",
+        "\n",
+        "negative = df[df['qty'] < 0].shape[0]\n",
+        "df = df[df['qty'] >= 0]\n",
+        "log('qty', 'dropped negative rows', negative)\n",
+        "\n",
+        "df.head()"
+      ],
+      "id": "9vFG9MO5KGWH"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "Ox31fKh7KGWH"
+      },
+      "source": [
+        "### TODO 4 — canonicalize `item`\n",
+        "\n",
+        "Six spellings, three real products. Start by listing what you actually have, then build the mapping from that list rather than from memory.\n",
+        "\n",
+        "```python\n",
+        "print(df['item'].value_counts())\n",
+        "ITEM_MAP = {...}\n",
+        "```"
+      ],
+      "id": "Ox31fKh7KGWH"
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(df['item'].value_counts())"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "z5xZWTZ5Nm6U",
+        "outputId": "7882d2dc-9e3a-4a65-8d70-1dc92a7b2f07"
+      },
+      "id": "z5xZWTZ5Nm6U",
+      "execution_count": 7,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "item\n",
+            "Foam Finger      57\n",
+            "Rain Poncho      49\n",
+            "cheese burger    44\n",
+            "Cheeseburger     43\n",
+            "rain poncho      42\n",
+            "foam finger      40\n",
+            "Name: count, dtype: int64\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 8,
+      "metadata": {
+        "id": "z9HKHFBIKGWH",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "3cdec38b-180e-4f60-c626-22c409f3e35e"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "item\n",
+            "Foam Finger      57\n",
+            "Rain Poncho      49\n",
+            "cheese burger    44\n",
+            "Cheeseburger     43\n",
+            "rain poncho      42\n",
+            "foam finger      40\n",
+            "Name: count, dtype: int64\n",
+            "[item] collapsed (2 row(s))\n",
+            "item\n",
+            "Foam Finger     97\n",
+            "Rain Poncho     91\n",
+            "Cheeseburger    87\n",
+            "Name: count, dtype: int64\n"
+          ]
+        }
+      ],
+      "source": [
+        "# TODO: inspect the variants, build a mapping dict, apply it, log the collapse\n",
+        "print(df['item'].value_counts())\n",
+        "before = df['item'].nunique()\n",
+        "df['item'] = df['item'].str.lower().str.strip()\n",
+        "\n",
+        "\n",
+        "ITEM_MAP = {\n",
+        "    'cheeseburger': 'Cheeseburger',\n",
+        "    'cheese burger': 'Cheeseburger',\n",
+        "    'foam finger': 'Foam Finger',\n",
+        "    'foam finger': 'Foam Finger',\n",
+        "    'rain poncho': 'Rain Poncho',\n",
+        "    'rain poncho': 'Rain Poncho',\n",
+        "}\n",
+        "\n",
+        "after = df['item'].nunique()\n",
+        "df['item'] = df['item'].map(ITEM_MAP)\n",
+        "log('item', 'collapsed', before - after)\n",
+        "print(df['item'].value_counts())"
+      ],
+      "id": "z9HKHFBIKGWH"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "zrivTnYEKGWH"
+      },
+      "source": [
+        "### TODO 5 — normalize `category`\n",
+        "\n",
+        "Same approach. Note that `Apparel` and `Merch` are a business decision, not a string problem — decide and log it."
+      ],
+      "id": "zrivTnYEKGWH"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 9,
+      "metadata": {
+        "id": "DpX8ep2eKGWI",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "009aa302-5d05-4076-af3f-3ba5e8d56e63"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "category\n",
+            "Food         51\n",
+            "Merch        51\n",
+            "rain-gear    45\n",
+            "food         44\n",
+            "Apparel      43\n",
+            "RainGear     41\n",
+            "Name: count, dtype: int64\n",
+            "[category] collapsed (2 row(s))\n",
+            "category\n",
+            "food        95\n",
+            "raingear    86\n",
+            "merch       51\n",
+            "apparel     43\n",
+            "Name: count, dtype: int64\n"
+          ]
+        }
+      ],
+      "source": [
+        "# TODO\n",
+        "print(df['category'].value_counts())\n",
+        "before = df['category'].nunique()\n",
+        "df['category'] = df['category'].str.lower().str.strip().str.replace('-','')\n",
+        "after = df['category'].nunique()\n",
+        "log('category', 'collapsed', before - after)\n",
+        "print(df['category'].value_counts())"
+      ],
+      "id": "DpX8ep2eKGWI"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "qfyE1mpGKGWI"
+      },
+      "source": [
+        "### TODO 6 — prove it's clean\n",
+        "\n",
+        "**TODO:** uncomment these and add two more assertions of your own — one about the item names and one about the categories."
+      ],
+      "id": "qfyE1mpGKGWI"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 10,
+      "metadata": {
+        "id": "QOcM3AK8KGWI",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "f3d49a67-98b1-417b-9b47-a45722885616"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "clean: (275, 5)\n"
+          ]
+        }
+      ],
+      "source": [
+        "assert df.duplicated().sum() == 0\n",
+        "assert df['qty'].min() >= 1\n",
+        "assert df['price'].dtype == float\n",
+        "assert df['item'].nunique() == 3\n",
+        "assert df['category'].nunique() == 4\n",
+        "print('clean:', df.shape)"
+      ],
+      "id": "QOcM3AK8KGWI"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "LZna-eziKGWI"
+      },
+      "source": [
+        "### TODO 7 — the number you would report\n",
+        "\n",
+        "**TODO:** add a `revenue` column, then print revenue by category, highest first, plus the overall total. Round money to two decimals.\n",
+        "\n",
+        "Then, in one sentence, state what you would tell a vendor to stock more of."
+      ],
+      "id": "LZna-eziKGWI"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 11,
+      "metadata": {
+        "id": "jfWR3krHKGWJ",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "9825a2c7-dc07-4f82-d272-654029ee5b4b"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "category\n",
+            "food        1656.0\n",
+            "raingear    1512.0\n",
+            "merch        856.5\n",
+            "apparel      715.5\n",
+            "Name: revenue, dtype: float64\n"
+          ]
+        }
+      ],
+      "source": [
+        "# TODO\n",
+        "df['revenue'] = df['qty'] * df['price']\n",
+        "print(df.groupby('category')['revenue'].sum().sort_values(ascending=False).round(2))"
+      ],
+      "id": "jfWR3krHKGWJ"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "fThFNJvwKGWJ"
+      },
+      "source": [
+        "**What I would tell the vendor:** continue to stock food as much as possible as it is the highest revenue category of item"
+      ],
+      "id": "fThFNJvwKGWJ"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "kKMqOratKGWJ"
+      },
+      "source": [
+        "### TODO 8 — read back your log"
+      ],
+      "id": "kKMqOratKGWJ"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 12,
+      "metadata": {
+        "id": "HM_S_BCPKGWJ",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 237
+        },
+        "outputId": "089a6e7b-0e40-45d5-9482-0aea9b5650c3"
+      },
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "              step               decision  rows\n",
+              "0  drop duplicates                dropped    15\n",
+              "1            price       coerced to float   300\n",
+              "2              qty  dropped missing rows     12\n",
+              "3              qty  dropped negative rows    13\n",
+              "4             item              collapsed     2\n",
+              "5         category              collapsed     2"
+            ],
+            "text/html": [
+              "\n",
+              "  <div id=\"df-6c0d56d3-8003-4575-bed7-3afe3678d072\" class=\"colab-df-container\">\n",
+              "    <div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>step</th>\n",
+              "      <th>decision</th>\n",
+              "      <th>rows</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>drop duplicates</td>\n",
+              "      <td>dropped</td>\n",
+              "      <td>15</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>price</td>\n",
+              "      <td>coerced to float</td>\n",
+              "      <td>300</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>qty</td>\n",
+              "      <td>dropped missing rows</td>\n",
+              "      <td>12</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>3</th>\n",
+              "      <td>qty</td>\n",
+              "      <td>dropped negative rows</td>\n",
+              "      <td>13</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>4</th>\n",
+              "      <td>item</td>\n",
+              "      <td>collapsed</td>\n",
+              "      <td>2</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>5</th>\n",
+              "      <td>category</td>\n",
+              "      <td>collapsed</td>\n",
+              "      <td>2</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>\n",
+              "    <div class=\"colab-df-buttons\">\n",
+              "\n",
+              "  <div class=\"colab-df-container\">\n",
+              "    <button class=\"colab-df-convert\" onclick=\"convertToInteractive('df-6c0d56d3-8003-4575-bed7-3afe3678d072')\"\n",
+              "            title=\"Convert this dataframe to an interactive table.\"\n",
+              "            style=\"display:none;\">\n",
+              "\n",
+              "  <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24px\" viewBox=\"0 -960 960 960\">\n",
+              "    <path d=\"M120-120v-720h720v720H120Zm60-500h600v-160H180v160Zm220 220h160v-160H400v160Zm0 220h160v-160H400v160ZM180-400h160v-160H180v160Zm440 0h160v-160H620v160ZM180-180h160v-160H180v160Zm440 0h160v-160H620v160Z\"/>\n",
+              "  </svg>\n",
+              "    </button>\n",
+              "\n",
+              "  <style>\n",
+              "    .colab-df-container {\n",
+              "      display:flex;\n",
+              "      gap: 12px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert {\n",
+              "      background-color: #E8F0FE;\n",
+              "      border: none;\n",
+              "      border-radius: 50%;\n",
+              "      cursor: pointer;\n",
+              "      display: none;\n",
+              "      fill: #1967D2;\n",
+              "      height: 32px;\n",
+              "      padding: 0 0 0 0;\n",
+              "      width: 32px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert:hover {\n",
+              "      background-color: #E2EBFA;\n",
+              "      box-shadow: 0px 1px 2px rgba(60, 64, 67, 0.3), 0px 1px 3px 1px rgba(60, 64, 67, 0.15);\n",
+              "      fill: #174EA6;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-buttons div {\n",
+              "      margin-bottom: 4px;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert {\n",
+              "      background-color: #3B4455;\n",
+              "      fill: #D2E3FC;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert:hover {\n",
+              "      background-color: #434B5C;\n",
+              "      box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);\n",
+              "      filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));\n",
+              "      fill: #FFFFFF;\n",
+              "    }\n",
+              "  </style>\n",
+              "\n",
+              "    <script>\n",
+              "      const buttonEl =\n",
+              "        document.querySelector('#df-6c0d56d3-8003-4575-bed7-3afe3678d072 button.colab-df-convert');\n",
+              "      buttonEl.style.display =\n",
+              "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
+              "\n",
+              "      async function convertToInteractive(key) {\n",
+              "        const element = document.querySelector('#df-6c0d56d3-8003-4575-bed7-3afe3678d072');\n",
+              "        const dataTable =\n",
+              "          await google.colab.kernel.invokeFunction('convertToInteractive',\n",
+              "                                                    [key], {});\n",
+              "        if (!dataTable) return;\n",
+              "\n",
+              "        const docLinkHtml = 'Like what you see? Visit the ' +\n",
+              "          '<a target=\"_blank\" href=https://colab.research.google.com/notebooks/data_table.ipynb>data table notebook</a>'\n",
+              "          + ' to learn more about interactive tables.';\n",
+              "        element.innerHTML = '';\n",
+              "        dataTable['output_type'] = 'display_data';\n",
+              "        await google.colab.output.renderOutput(dataTable, element);\n",
+              "        const docLink = document.createElement('div');\n",
+              "        docLink.innerHTML = docLinkHtml;\n",
+              "        element.appendChild(docLink);\n",
+              "      }\n",
+              "    </script>\n",
+              "  </div>\n",
+              "\n",
+              "\n",
+              "    </div>\n",
+              "  </div>\n"
+            ],
+            "application/vnd.google.colaboratory.intrinsic+json": {
+              "type": "dataframe",
+              "summary": "{\n  \"name\": \"pd\",\n  \"rows\": 6,\n  \"fields\": [\n    {\n      \"column\": \"step\",\n      \"properties\": {\n        \"dtype\": \"string\",\n        \"num_unique_values\": 5,\n        \"samples\": [\n          \"price\",\n          \"category\",\n          \"qty\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"decision\",\n      \"properties\": {\n        \"dtype\": \"string\",\n        \"num_unique_values\": 5,\n        \"samples\": [\n          \"coerced to float\",\n          \"collapsed\",\n          \"dropped missing rows \"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"rows\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 119,\n        \"min\": 2,\n        \"max\": 300,\n        \"num_unique_values\": 5,\n        \"samples\": [\n          300,\n          2,\n          12\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    }\n  ]\n}"
+            }
+          },
+          "metadata": {},
+          "execution_count": 12
+        }
+      ],
+      "source": [
+        "import pandas as pd\n",
+        "pd.DataFrame(DECISIONS)"
+      ],
+      "id": "HM_S_BCPKGWJ"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "WZEePlksKGWJ"
+      },
+      "source": [
+        "### Write-up\n",
+        "\n",
+        "Two parts.\n",
+        "\n",
+        "**a)** Which cleaning step changed your revenue total the most? Give the number before and after that step, not a description.\n",
+        "\n",
+        "**b)** Pick one decision you made where a reasonable person could have chosen differently. State the other choice, what it would have done to your reported revenue, and why you went the way you did."
+      ],
+      "id": "WZEePlksKGWJ"
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "a). The price cleaning and coercion changed the revenue total the most, with the before being unverifiable due to the values being strings and the after being $3283.5\n",
+        "\n",
+        "b). Someone could have decided to inclue merch and apparel as one category which would lead to the revenue of the two being combined into $1572.0"
+      ],
+      "metadata": {
+        "id": "GTrsWsstEPNB"
+      },
+      "id": "GTrsWsstEPNB"
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "display_name": "Python 3",
+      "language": "python",
+      "name": "python3"
+    },
+    "language_info": {
+      "name": "python",
+      "version": "3.x"
+    },
+    "colab": {
+      "provenance": [],
+      "include_colab_link": true
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}
